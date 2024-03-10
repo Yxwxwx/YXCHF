@@ -5,9 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <vector>
 #include <omp.h>
 #include <boost/math/special_functions/hypergeometric_1F1.hpp>
@@ -244,11 +242,87 @@ public:
     
     
   }
-  double expansion_coefficients(int i, int j, int t, double Qx, double a, double b);
-  double overlap_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B);
-  Matrix calc_ovlp(std::vector<Shell>& shells);
-  double kinetic_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B);
-  Matrix calc_kin(std::vector<Shell>& shells);
+  double expansion_coefficients(int i, int j, int t, double Qx, double a, double b) {
+    /*
+        Recursive definition of Hermite Gaussian coefficients.
+        Returns a double.
+        a: orbital exponent on Gaussian 'a' (e.g. alpha in the text)
+        b: orbital exponent on Gaussian 'b' (e.g. beta in the text)
+        i,j: orbital angular momentum number on Gaussian 'a' and 'b'
+        t: number nodes in Hermite (depends on type of integral, 
+           e.g. always zero for overlap integrals)
+        Qx: distance between origins of Gaussian 'a' and 'b'
+    */
+   auto p = a+b;
+   auto q = a*b/p;
+   if (t < 0 || t > (i + j))
+   {
+    // out of bounds for t
+    return 0.0;
+   }
+   else if (i == 0 && j == 0 && t == 0)
+   {
+        return std::exp(-q*Qx*Qx); // K_AB
+   }
+   else if (j == 0)
+   {
+        // decrement index i
+        return (1/(2*p))*expansion_coefficients(i-1,j,t-1,Qx,a,b) - \
+               (q*Qx/a)*expansion_coefficients(i-1,j,t,Qx,a,b)    + \
+               (t+1)*expansion_coefficients(i-1,j,t+1,Qx,a,b);
+   }
+   else
+   {
+        // decrement index j
+        return (1/(2*p))*expansion_coefficients(i,j-1,t-1,Qx,a,b) + \
+               (q*Qx/b)*expansion_coefficients(i,j-1,t,Qx,a,b)    + \
+               (t+1)*expansion_coefficients(i,j-1,t+1,Qx,a,b);
+   }
+}
+  double overlap_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B) {
+    /*
+        Evaluates overlap integral between two Gaussians
+        Returns a float.
+        a:    orbital exponent on Gaussian 'a' (e.g. alpha in the text)
+        b:    orbital exponent on Gaussian 'b' (e.g. beta in the text)
+        lmn1: int tuple containing orbital angular momentum (e.g. (1,0,0))
+              for Gaussian 'a'
+        lmn2: int tuple containing orbital angular momentum for Gaussian 'b'
+        A:    list containing origin of Gaussian 'a', e.g. [1.0, 2.0, 0.0]
+        B:    list containing origin of Gaussian 'b'
+    */
+    auto l1 = lmn1[0], m1 = lmn1[1], n1 = lmn1[2];
+    auto l2 = lmn2[0], m2 = lmn2[1], n2 = lmn2[2];
+
+    double S1 = expansion_coefficients(l1,l2,0,A[0]-B[0],a,b); // X
+    double S2 = expansion_coefficients(m1,m2,0,A[1]-B[1],a,b); // Y
+    double S3 = expansion_coefficients(n1,n2,0,A[2]-B[2],a,b); // Z
+    
+    return S1*S2*S3*pow(M_PI/(a+b),1.5);
+}
+
+  double kinetic_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B) {
+    auto l1 = lmn1[0], m1 = lmn1[1], n1 = lmn1[2];
+    auto l2 = lmn2[0], m2 = lmn2[1], n2 = lmn2[2];
+
+    std::vector<int> lmn1_2 = {l1, m1, n1};
+    std::vector<int> lmn2_2 = {l2 + 2, m2, n2};
+    std::vector<int> lmn2_3 = {l2, m2 + 2, n2};
+    std::vector<int> lmn2_4 = {l2, m2, n2 + 2};
+    std::vector<int> lmn2_5 = {l2 - 2, m2, n2};
+    std::vector<int> lmn2_6 = {l2, m2 - 2, n2};
+    std::vector<int> lmn2_7 = {l2, m2, n2 - 2};
+
+    double term0 = b * (2 * (l2 + m2 + n2) + 3) * overlap_elem(a, lmn1, A, b, lmn2, B);
+    double term1 = -2 * pow(b, 2) * (overlap_elem(a, lmn1_2, A, b, lmn2_2, B) +
+                                      overlap_elem(a, lmn1_2, A, b, lmn2_3, B) +
+                                      overlap_elem(a, lmn1_2, A, b, lmn2_4, B));
+    double term2 = -0.5 * (l2 * (l2 - 1) * overlap_elem(a, lmn1_2, A, b, lmn2_5, B) +
+                           m2 * (m2 - 1) * overlap_elem(a, lmn1_2, A, b, lmn2_6, B) +
+                           n2 * (n2 - 1) * overlap_elem(a, lmn1_2, A, b, lmn2_7, B));
+    return term0 + term1 + term2;
+}
+
 
 double boys(int n, double T) {
     return boost::math::hypergeometric_1F1(n + 0.5, n + 1.5, -T) / (2.0 * n + 1.0);
@@ -261,14 +335,123 @@ double boys(int n, double T) {
     }
     return result;
   }
-  double coulomb_auxiliary_hermite_integrals(int t, int u, int v, double n, double p, double PCx, double PCy, double PCz, double RPC);
-  double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B, std::vector<double>& C);
+ double coulomb_auxiliary_hermite_integrals(int t, int u, int v, double n, double p, double PCx, double PCy, double PCz, double RPC) {
+    /*
+        Returns the Coulomb auxiliary Hermite integrals 
+        Returns a float.
+        Arguments:
+        t,u,v:   order of Coulomb Hermite derivative in x,y,z
+                 (see defs in Helgaker and Taylor)
+        n:       order of Boys function 
+        PCx,y,z: Cartesian vector distance between Gaussian 
+                 composite center P and nuclear center C
+        RPC:     Distance between P and C
+    */
+    auto T = p*RPC*RPC;
+    double val = 0.0;
+    if (t == 0 && u == 0 && v == 0) {
+        val += pow(-2*p, n)*boys(n, T);
+    } else if (t == 0 && u == 0) {
+        if (v > 1) {
+            val += (v-1)*coulomb_auxiliary_hermite_integrals(t, u, v-2, n+1, p, PCx, PCy, PCz, RPC);
+        }
+        val += PCz*coulomb_auxiliary_hermite_integrals(t, u, v-1, n+1, p, PCx, PCy, PCz, RPC);
+    } else if (t == 0) {
+        if (u > 1) {
+            val += (u-1)*coulomb_auxiliary_hermite_integrals(t, u-2, v, n+1, p, PCx, PCy, PCz, RPC);
+        }
+        val += PCy*coulomb_auxiliary_hermite_integrals(t, u-1, v, n+1, p, PCx, PCy, PCz, RPC);
+    } else {
+        if (t > 1) {
+            val += (t-1)*coulomb_auxiliary_hermite_integrals(t-2, u, v, n+1, p, PCx, PCy, PCz, RPC);
+        }
+        val += PCx*coulomb_auxiliary_hermite_integrals(t-1, u, v, n+1, p, PCx, PCy, PCz, RPC);
+    }
+    return val;
+}
+double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B, std::vector<double>& C) {
+    /*
+        Evaluates kinetic energy integral between two Gaussians
+         Returns a float.
+         a:    orbital exponent on Gaussian 'a' (e.g. alpha in the text)
+         b:    orbital exponent on Gaussian 'b' (e.g. beta in the text)
+         lmn1: int tuple containing orbital angular momentum (e.g. (1,0,0))
+               for Gaussian 'a'
+         lmn2: int tuple containing orbital angular momentum for Gaussian 'b'
+         A:    list containing origin of Gaussian 'a', e.g. [1.0, 2.0, 0.0]
+         B:    list containing origin of Gaussian 'b'
+         C:    list containing origin of nuclear center 'C'
+    */
+    auto l1 = lmn1[0], m1 = lmn1[1], n1 = lmn1[2];
+    auto l2 = lmn2[0], m2 = lmn2[1], n2 = lmn2[2];
+
+    auto p = a + b;
+    auto P = gaussian_product_center(a, A, b, B);
+    auto RPC = std::sqrt(std::pow(P[0]-C[0], 2) + std::pow(P[1]-C[1], 2) + std::pow(P[2]-C[2], 2));
+
+    double val = 0.0;
+
+    //#pragma omp parallel for reduction(+:val)
+    for (int t = 0; t <= l1+l2; t++) {
+        for (int u = 0; u <= m1+m2; u++) {
+            for (int v = 0; v <= n1+n2; v++) {
+                val += expansion_coefficients(l1,l2,t,A[0]-B[0],a,b) *
+                       expansion_coefficients(m1,m2,u,A[1]-B[1],a,b) *
+                       expansion_coefficients(n1,n2,v,A[2]-B[2],a,b) *
+                       coulomb_auxiliary_hermite_integrals(t,u,v,0.0,p,P[0]-C[0],P[1]-C[1],P[2]-C[2],RPC);
+            }
+        }
+    }
+    val *= 2*M_PI/p;
+    return val;
+}
+
+  double electron_repulsion(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B, double c, std::vector<int>& lmn3,std::vector<double>& C, double d, std::vector<int>& lmn4,std::vector<double>& D) {
+    auto l1 = lmn1[0], m1 = lmn1[1], n1 = lmn1[2];
+    auto l2 = lmn2[0], m2 = lmn2[1], n2 = lmn2[2];
+    auto l3 = lmn3[0], m3 = lmn3[1], n3 = lmn3[2];
+    auto l4 = lmn4[0], m4 = lmn4[1], n4 = lmn4[2];
+
+    auto p = a + b;
+    auto q = c + d;
+    auto alpha = p * q/ (p + q);
+    auto P = gaussian_product_center(a, A, b, B);
+    auto Q = gaussian_product_center(c, C, d, D);
+    auto RPQ = std::sqrt(std::pow(P[0]-Q[0], 2) + std::pow(P[1]-Q[1], 2) + std::pow(P[2]-Q[2], 2));
+
+    double val = 0.0;
+    for (int t = 0; t <= l1 + l2; t++) {
+        for (int u = 0; u <= m1 + m2; u++) {
+            for (int v = 0; v <= n1 + n2; v++) {
+                for (int tau = 0; tau <= l3 + l4; tau++) {
+                    for (int nu = 0; nu <= m3 + m4; nu++) {
+                        for (int phi = 0; phi <= n3 + n4; phi++) {
+                            val += expansion_coefficients(l1,l2,t,A[0]-B[0],a,b) *
+                                   expansion_coefficients(m1,m2,u,A[1]-B[1],a,b) *
+                                   expansion_coefficients(n1,n2,v,A[2]-B[2],a,b) *
+                                   expansion_coefficients(l3,l4,tau,C[0]-D[0],c,d) *
+                                   expansion_coefficients(m3,m4,nu ,C[1]-D[1],c,d) *
+                                   expansion_coefficients(n3,n4,phi,C[2]-D[2],c,d) *
+                                   std::pow(-1,tau+nu+phi) *
+                                   coulomb_auxiliary_hermite_integrals(t+tau,u+nu,v+phi,0,
+                                       alpha,P[0]-Q[0],P[1]-Q[1],P[2]-Q[2],RPQ);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val *= 2 * std::pow(M_PI, 2.5) / (p * q * std::sqrt(p + q));
+    return val;
+}
+  Matrix calc_ovlp(std::vector<Shell>& shells);
+  Matrix calc_kin(std::vector<Shell>& shells);
   Matrix calc_nuc(std::vector<Shell>& shells, std::vector<Atom>& atoms);
 
   Matrix calc_core_h(std::vector<Shell>& shells, std::vector<Atom>& atoms) {
     m_H = calc_kin(shells) + calc_nuc(shells, atoms);
     return m_H;
   }
-  double electron_repulsion(double a, std::vector<int>& lmn1, std::vector<double>& A, double b, std::vector<int>& lmn2, std::vector<double>& B, double c, std::vector<int>& lmn3,std::vector<double>& C, double d, std::vector<int>& lmn4,std::vector<double>& D);
   Tensor calc_eri(std::vector<Shell>& shells);
 };
