@@ -98,7 +98,7 @@ public:
     std::getline(is, comment);
 
     std::vector<Atom> atoms(natom);
-    for (auto i = 0; i < natom; i++) {
+    for (size_t i = 0; i < natom; i++) {
       std::string element_label;
       double x, y, z;
       is >> element_label >> x >> y >> z;
@@ -163,7 +163,7 @@ public:
 
     std::vector<Shell> shells;
 
-    for (auto a = 0; a < atoms.size(); a++)
+    for (size_t a = 0; a < atoms.size(); a++)
     {
       switch (atoms[a].atomic_number)
       {
@@ -232,7 +232,7 @@ public:
   std::vector<double> norm(std::vector<int>& lmn,std::vector<double>& exps)
   {
     std::vector<double> norms(exps.size());
-    for (int i = 0; i < exps.size(); i++) {
+    for (size_t i = 0; i < exps.size(); i++) {
       auto l = lmn[0], m = lmn[1], n = lmn[2];
       norms[i] = std::sqrt(std::pow(2, 2 * (l + m + n) + 1.5) *
                              std::pow(exps[i], l + m + n + 1.5) /
@@ -248,8 +248,8 @@ public:
                        fact2(2 * l - 1) * fact2(2 * m - 1) * fact2(2 * n - 1) /
                        std::pow(2.0, L);
     double N = 0.0;
-    for (int i = 0; i < coeff.size(); i++) {
-      for (int j = 0; j < coeff.size(); j++) {
+    for (size_t i = 0; i < coeff.size(); i++) {
+      for (size_t j = 0; j < coeff.size(); j++) {
         N += norm[i] * norm[j] * coeff[i] * coeff[j] /
              std::pow(exp[i] + exp[j], L + 1.5);
       }
@@ -258,7 +258,7 @@ public:
     N *= prefactor;
     N = std::pow(N, -0.5);
 
-    for (int i = 0; i < coeff.size(); i++) {
+    for (size_t i = 0; i < coeff.size(); i++) {
       coeff[i] *= N;
     }
     
@@ -468,11 +468,9 @@ double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, do
     val *= 2 * std::pow(M_PI, 2.5) / (p * q * std::sqrt(p + q));
     return val;
 }
-  void int1e_ovlp_cart(double* buf, std::vector<Shell>& shells, int* shls) {
+  void int1e_ovlp_cart(double* buf, const std::vector<Shell>& shells, const int* shls) {
     
     auto ipr = shls[0], jpr = shls[1];
-
-    auto di = shells[ipr].ngto, dj = shells[jpr].ngto;
 
     auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl;
     auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp;
@@ -509,11 +507,9 @@ double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, do
     }
   }
 
-  void int1e_kin_cart(double* buf, std::vector<Shell>& shells, int* shls) {
+  void int1e_kin_cart(double* buf, const std::vector<Shell>& shells, const int* shls) {
         
     auto ipr = shls[0], jpr = shls[1];
-
-    auto di = shells[ipr].ngto, dj = shells[jpr].ngto;
 
     auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl;
     auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp;
@@ -551,11 +547,9 @@ double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, do
     
   }
   
-  void int1e_nuc_cart(double* buf, std::vector<Shell>& shells, int* shls, std::vector<std::pair<int, std::vector<double>>>& q) {
+  void int1e_nuc_cart(double* buf, const std::vector<Shell>& shells, const int* shls, const std::vector<std::pair<int, std::vector<double>>>& q) {
 
     auto ipr = shls[0], jpr = shls[1];
-
-    auto di = shells[ipr].ngto, dj = shells[jpr].ngto;
 
     auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl;
     auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp;
@@ -594,11 +588,9 @@ double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, do
     }
   }
   
-  void int2e_cart(double* buf, std::vector<Shell>& shells, int* shls) {
+  void int2e_cart(double* buf, const std::vector<Shell>& shells, const int* shls) {
     
     auto ipr = shls[0], jpr = shls[1], kpr = shls[2], lpr = shls[3];
-
-    auto di = shells[ipr].ngto, dj = shells[jpr].ngto, dk = shells[kpr].ngto, dl = shells[lpr].ngto;
 
     auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl, shl3 = shells[kpr].shl, shl4 = shells[lpr].shl;
     auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp, exp3 = shells[kpr].exp, exp4 = shells[lpr].exp;
@@ -658,13 +650,21 @@ double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, do
     }
   }
 
-  Matrix calc_ovlp(std::vector<Shell>& shells);
-  Matrix calc_kin(std::vector<Shell>& shells);
-  Matrix calc_nuc(std::vector<Shell>& shells, std::vector<Atom>& atoms);
+  Matrix calc_ovlp(const std::vector<Shell>& shells);
+  Matrix calc_kin(const std::vector<Shell>& shells);
+  Matrix calc_nuc(const std::vector<Shell>& shells, const std::vector<Atom>& atoms);
 
-  Matrix calc_core_h(std::vector<Shell>& shells, std::vector<Atom>& atoms) {
+  Matrix calc_core_h(const std::vector<Shell>& shells, const std::vector<Atom>& atoms) {
     m_H = calc_kin(shells) + calc_nuc(shells, atoms);
     return m_H;
   }
-  Tensor calc_eri(std::vector<Shell>& shells);
+  Tensor calc_eri(const std::vector<Shell>& shells);
+  double degeneracy(const int* shls) {
+    auto s1 = shls[0], s2 = shls[1], s3 = shls[2], s4 = shls[3];
+    auto s12_deg = (s1 == s2) ? 1.0 : 2.0;
+    auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
+    auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+    return s12_deg * s34_deg * s12_34_deg;
+  }
+  Matrix calc_eri_direct(const std::vector<Shell>& shells, const Matrix& D);
 };

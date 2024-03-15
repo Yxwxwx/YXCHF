@@ -11,7 +11,7 @@ mol = gto.M(atom='''
             ''', basis="sto-3g")
 # ==> Set default program options <==
 # Maximum SCF iterations
-max_iter = 1
+max_iter = 100
 # Energy convergence criterion
 E_conv = 1.0e-10
 D_conv = 1.0e-8
@@ -58,10 +58,11 @@ T = mol.intor("int1e_kin_sph")  # kintic
 V = mol.intor("int1e_nuc_sph")  # nuc_e
 H = T + V
 
+
 # 2e-int
 I = mol.intor("int2e_sph", aosym=1)
 I = np.reshape(I, [nao, nao, nao, nao])
-print("\n", np.sum(I))
+
 
 # Trial & Residual Vector Lists -- one each for alpha & beta
 F_list = []
@@ -123,7 +124,7 @@ def diis_xtrap(F_list, DIIS_RESID):
 scf_eng = scf.RHF(mol)
 scf_eng.scf()
 D = make_D(H, ndocc)
-
+print("\n", D)
 # D = np.eye(nao)
 # D = scf_eng.get_init_guess()
 
@@ -135,7 +136,6 @@ E_old = 0.0
 for scf_iter in range(1, max_iter + 1):
     # GET Fock martix
     F = H + 2 * get_j(D) - get_k(D)
-
     # build error vector
     """error vector = FDS - SDF """
     diis_r = F.dot(D).dot(S) - S.dot(D).dot(F)

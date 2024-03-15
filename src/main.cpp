@@ -3,33 +3,127 @@
 int main(int argc, char* argv[]) {
     const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
     Mole mole;
+    auto start = std::chrono::high_resolution_clock::now();
     auto atoms = mole.read_geometry(filename);
     auto shells = mole.make_sto3g_basis(atoms);
-
-    std::cout << "down build!\n";
-    auto start = std::chrono::high_resolution_clock::now();
-    mole.m_S = mole.calc_ovlp(shells);
-    mole.m_H = mole.calc_core_h(shells, atoms);
-    mole.m_I = mole.calc_eri(shells);
-    auto end = std::chrono::high_resolution_clock::now();
-    
-    
-    //tensor_print(mole.m_I);
-    std::cout << mole.m_I.sum() << std::endl;
-    //std::cout << "S:\n" << mole.m_S << "\n";
-    /*
-    std::cout << "T:\n" << T << "\n";
-    std::cout << "V:\n" << V << "\n";
-    */
-
-    // 计算并输出耗时
+    auto end = std::chrono::high_resolution_clock::now(); 
     std::chrono::duration<double> diff = end-start;
-    std::cout << "Time to calculate S: " << diff.count() << " s\n";
+    std::cout << "initialize molecule cost: " << diff.count() << " s\n";
 
+    const int ndocc = mole.m_nelec / 2;
+    auto nao = 0;
+    for (const auto& shell : shells) {
+        nao += shell.ngto;
+    }
+
+    try
+    {
+        // compute the nuclear repulsion energy
+        auto enuc = 0.0;
+        for (size_t i = 0; i < atoms.size(); i++) 
+            for (size_t j = i + 1; j < atoms.size(); j++) {
+                auto xij = atoms[i].x - atoms[j].x;
+                auto yij = atoms[i].y - atoms[j].y;
+                auto zij = atoms[i].z - atoms[j].z;
+                auto r2 = xij * xij + yij * yij + zij * zij;
+                auto r = sqrt(r2);
+                enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
+            }
+        std::cout << "\tNuclear repulsion energy = " << enuc << std::endl;
+
+        mole.m_S = mole.calc_ovlp(shells);
+        //std::cout << "\n\tOverlap Integrals:\n";
+        //std::cout << mole.m_S << std::endl;
+
+        //std::cout << "\n\tCore Hamiltonian:\n";
+        mole.m_H = mole.calc_core_h(shells, atoms);
+        //std::cout << mole.m_H << std::endl;
+
+        Matrix D;
+        //use core Hamiltonian eigenstates to guess density
+        Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(mole.m_H, mole.m_S);
+        auto eps = gen_eig_solver.eigenvalues();
+        auto C = gen_eig_solver.eigenvectors();
+
+        //std::cout << "\n\tInitial C Matrix:\n";
+        //std::cout << C << std::endl;
+
+        // compute density, D = C(occ) . C(occ)T
+        auto C_occ = C.leftCols(ndocc);
+        D = C_occ * C_occ.transpose();
+
+        //std::cout << "\n\tInitial Density Matrix:\n";
+        //std::cout << D << std::endl;
+
+        const auto maxiter = 100;
+        const double conv = 1e-12;
+        auto iter = 0;
+        double rmsd = 0.0;
+        double ediff = 0.0;
+        double ehf = 0.0;
+
+        do
+        {
+          const auto tstart = std::chrono::high_resolution_clock::now();
+          ++iter;
+
+          // Save a copy of the energy and the density
+          auto ehf_last = ehf;
+          auto D_last = D;
+
+          auto F = mole.m_H;
+
+          F += mole.calc_eri_direct(shells, D);
+          
+
+          Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, mole.m_S);
+          auto eps = gen_eig_solver.eigenvalues();
+          auto C = gen_eig_solver.eigenvectors();
+
+          // compute density, D = C(occ) . C(occ)T
+          auto C_occ = C.leftCols(ndocc);
+          D = C_occ * C_occ.transpose();
+          // compute HF energy
+          ehf = 0.0;
+          for (auto i = 0; i < nao; i++)
+            for (auto j = 0; j < nao; j++) ehf += D(i, j) * (mole.m_H(i, j) + F(i, j));
+          
+          // compute difference with last iteration
+          ediff = ehf - ehf_last;
+          rmsd = (D - D_last).norm();
+          const auto tstop = std::chrono::high_resolution_clock::now();
+          const std::chrono::duration<double> time_elapsed = tstop - tstart;
+
+          if (iter == 1)
+            std::cout << "\n\n Iter        E(elec)              E(tot)             "
+                     "  Delta(E)             RMS(D)         Time(s)\n";
+          printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf,
+             ehf + enuc, ediff, rmsd, time_elapsed.count());
+
+
+        } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
+        
+        printf("** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+    }
+
+    catch (const char* ex) {
+        std::cerr << "caught exception: " << ex << std::endl;
+    return 1;
+    } catch (std::string& ex) {
+        std::cerr << "caught exception: " << ex << std::endl;
+    return 1;
+    } catch (std::exception& ex) {
+        std::cerr << ex.what() << std::endl;
+    return 1;
+    } catch (...) {
+        std::cerr << "caught unknown exception\n";
+    return 1;
+    }
+    
     return 0;
 }
 
-Matrix Mole::calc_ovlp(std::vector<Shell>& shells) {
+Matrix Mole::calc_ovlp(const std::vector<Shell>& shells) {
 
     int nshls = shells.size();
     auto sum_shls = nshls * (nshls + 1) / 2;
@@ -102,7 +196,7 @@ Matrix Mole::calc_ovlp(std::vector<Shell>& shells) {
     return S;
 }
 
-Matrix Mole::calc_kin(std::vector<Shell>& shells) {
+Matrix Mole::calc_kin(const std::vector<Shell>& shells) {
 
     int nshls = shells.size();
     auto sum_shls = nshls * (nshls + 1) / 2;
@@ -176,7 +270,7 @@ Matrix Mole::calc_kin(std::vector<Shell>& shells) {
 }
 
 
-Matrix Mole::calc_nuc(std::vector<Shell>& shells, std::vector<Atom>& atoms) {
+Matrix Mole::calc_nuc(const std::vector<Shell>& shells, const std::vector<Atom>& atoms) {
 
     std::vector<std::pair<int, std::vector<double>>> q;
     for (const auto& atom : atoms) {
@@ -252,10 +346,11 @@ Matrix Mole::calc_nuc(std::vector<Shell>& shells, std::vector<Atom>& atoms) {
 
     delete[]ik;
     delete[]jl;  
+    
     return V;
 }
 
-Tensor Mole::calc_eri(std::vector<Shell>& shells) {
+Tensor Mole::calc_eri(const std::vector<Shell>& shells) {
 
     int nshls = shells.size();
     auto sum_shls = nshls * (nshls + 1) / 2;
@@ -351,4 +446,92 @@ Tensor Mole::calc_eri(std::vector<Shell>& shells) {
     delete[]ik;
     delete[]jl;
     return I;
+}
+
+Matrix Mole::calc_eri_direct(const std::vector<Shell>& shells, const Matrix& D) {
+
+    int nshls = shells.size();
+
+    auto nao = 0;
+    for (const auto& shell : shells) {
+        nao += shell.ngto;
+    }
+
+    Matrix G = Matrix::Zero(nao, nao);
+
+    int s1, s2, s3, s4, s4_max;
+    int di, dj, dk, dl, x, y, z, w, ijkl[4];
+    int fi, fj, fk, fl, fijkl;
+    double* buf;
+    double s1234_deg;
+
+#pragma omp parallel default(none) \
+             shared(nshls, shells, G, D) \
+             private(s1, s2, s3, s4, s4_max, di, x, dj, y, dk, z, dl, w, ijkl, fi, fj, fk, fl, fijkl, buf, s1234_deg) 
+#pragma omp for nowait schedule(dynamic, 2)   
+    for (s1 = 0; s1 < nshls; s1++) {
+        di = shells[s1].ngto;
+        x = 0;
+        for (int i = 0; i < s1; i++) {
+            x += shells[i].ngto;
+        }
+
+        for (s2 = 0; s2 <= s1; s2++) {
+            dj = shells[s2].ngto;
+            y = 0;
+            for (auto j = 0; j < s2; j++) {
+                y += shells[j].ngto;
+            }
+
+
+            ijkl[0] = s1;
+            ijkl[1] = s2;
+
+            for (s3 = 0; s3 <= s1; s3++) {
+                dk = shells[s3].ngto;
+                z  = 0;
+                for (int k = 0; k < s3; k++)
+                {   
+                    z += shells[k].ngto;
+                }   
+
+                s4_max = (s1 == s3) ? s2 : s3;
+                for (s4 = 0; s4 <= s4_max; s4++) {
+                    dl = shells[s4].ngto;
+                    w = 0;
+                    for (int l = 0; l < s4; l++)
+                    {
+                        w += shells[l].ngto;
+                    }
+
+                    
+                    ijkl[2] = s3;
+                    ijkl[3] = s4;
+                    s1234_deg = degeneracy(ijkl);
+
+                    buf = new double[di*dj*dk*dl]();
+                    int2e_cart(buf, shells, ijkl);
+                    fijkl = 0;
+                    for ( fi = 0; fi < di; fi++) {
+                        for (fj = 0; fj < dj; fj++) {
+                            for (fk = 0; fk < dk; fk++) {
+                                for (fl = 0; fl < dl; fl++, fijkl++) {
+                                    G(x + fi, y + fj) += D(z + fk, w + fl) * buf[fijkl] * s1234_deg;
+                                    G(z + fk, w + fl) += D(x + fi, y + fj) * buf[fijkl] * s1234_deg;
+                                    G(x + fi, z + fk) -= 0.25 * D(y + fj, w + fl) * buf[fijkl] * s1234_deg;
+                                    G(y + fj, w + fl) -= 0.25 * D(x + fi, z + fk) * buf[fijkl] * s1234_deg;
+                                    G(x + fi, w + fl) -= 0.25 * D(y + fj, z + fk) * buf[fijkl] * s1234_deg;
+                                    G(y + fj, z + fk) -= 0.25 * D(x + fi, w + fl) * buf[fijkl] * s1234_deg;
+                                }
+                            } 
+                        }  
+                    }
+                    delete[] buf;
+                }      
+            } 
+        }
+    }
+
+    Matrix Gt = G.transpose();
+    return 0.5 * (G + Gt);
 }
