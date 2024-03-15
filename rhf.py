@@ -1,9 +1,14 @@
 import numpy as np
 from scipy.linalg import sqrtm, eig
 from pyscf import scf, gto
+import time
 
 # Set up molecular geometry and basis
-mol = gto.M(atom="O 0 0 0; H 0 -0.757 0.587; H 0 0.757 0.587", basis="sto-3g")
+mol = gto.M(atom='''
+ O 0 0 0
+ H 0 -0.757 0.587
+ H 0 0.757 0.587
+            ''', basis="sto-3g")
 # ==> Set default program options <==
 # Maximum SCF iterations
 max_iter = 1
@@ -47,15 +52,17 @@ for A in range(mol.natm):
 E_nuc = 0.5 * np.einsum("A, B, AB ->", Z_A, Z_A, 1 / r_AB)
 # ==>Calculate 1e and 2e int with pyscf <==
 # 1e-int
+
 S = mol.intor("int1e_ovlp_sph")  # overlop
 T = mol.intor("int1e_kin_sph")  # kintic
 V = mol.intor("int1e_nuc_sph")  # nuc_e
 H = T + V
+
 # 2e-int
 I = mol.intor("int2e_sph", aosym=1)
 I = np.reshape(I, [nao, nao, nao, nao])
-#print("\n", I)
-print(np.sum(I))
+print("\n", np.sum(I))
+
 # Trial & Residual Vector Lists -- one each for alpha & beta
 F_list = []
 R_list = []

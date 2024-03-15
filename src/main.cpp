@@ -6,15 +6,18 @@ int main(int argc, char* argv[]) {
     auto atoms = mole.read_geometry(filename);
     auto shells = mole.make_sto3g_basis(atoms);
 
+    std::cout << "down build!\n";
     auto start = std::chrono::high_resolution_clock::now();
     mole.m_S = mole.calc_ovlp(shells);
     mole.m_H = mole.calc_core_h(shells, atoms);
     mole.m_I = mole.calc_eri(shells);
-    //std::cout << I.sum() << std::endl;
     auto end = std::chrono::high_resolution_clock::now();
     
+    
+    //tensor_print(mole.m_I);
+    std::cout << mole.m_I.sum() << std::endl;
+    //std::cout << "S:\n" << mole.m_S << "\n";
     /*
-    std::cout << "S:\n" << S << "\n";
     std::cout << "T:\n" << T << "\n";
     std::cout << "V:\n" << V << "\n";
     */
@@ -26,136 +29,149 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-
-
 Matrix Mole::calc_ovlp(std::vector<Shell>& shells) {
 
-    auto nshls = shells.size();
+    int nshls = shells.size();
+    auto sum_shls = nshls * (nshls + 1) / 2;
+
     auto nao = 0;
     for (const auto& shell : shells) {
         nao += shell.ngto;
     }
 
+    Eigen::IOFormat fmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
     Matrix S = Matrix::Zero(nao, nao);
-    //m_S.setZero(nao, nao);    
 
-    for (auto ipr = 0; ipr < nshls; ipr++) {
-        auto di = shells[ipr].ngto;
-        auto x = 0;
+    int  ijkl[2];
+
+    int* ik = new int[sum_shls], * jl = new int[sum_shls];
+    for (int i = 0, ij=0; i < nshls; ++i)
+        for (int j = i; j < nshls; ++j, ++ij)
+        {
+            ik[ij] = i;
+            jl[ij] = j;
+        }
+    
+    int ipr, jpr;
+    int ij, di, dj, x, y;
+    int fi, fj, fij;
+    double* buf;
+    //Matrix buf;
+ #pragma omp parallel default(none) \
+             shared(nshls, sum_shls, shells, ik, jl, S) \
+             private(ipr, jpr, ij, di, x, dj, y, ijkl, fi, fj,fij, buf) 
+ #pragma omp for nowait schedule(dynamic, 2)
+
+    for (ij = 0; ij < sum_shls; ij++)
+    {
+        ipr = ik[ij];
+        jpr = jl[ij];
+
+        di = shells[ipr].ngto;
+        x = 0;
         for (int i = 0; i < ipr; i++) {
             x += shells[i].ngto;
         }
-        for (auto jpr = ipr; jpr < nshls; jpr++) {
-            auto dj = shells[jpr].ngto;
-            auto y = 0;
-            for (auto j = 0; j < jpr; j++) {
-                y += shells[j].ngto;
-            }
-            
-            Matrix buf;
-            buf.setZero(di, dj);
-            
-            auto fx = 0;
-            for (auto lmn1 : shells[ipr].shl) {
-                auto normA = norm(lmn1, shells[ipr].exp);
-                auto coeffA = shells[ipr].coeff;
-                normalization(coeffA, lmn1, normA, shells[ipr].exp);
-                auto fy = 0;
-                for (auto lmn2 : shells[jpr].shl) {
-                    auto normB = norm(lmn2, shells[jpr].exp);
-                    auto coeffB = shells[jpr].coeff;
-                    normalization(coeffB, lmn2, normB, shells[jpr].exp);
-                    auto ia = 0;
-                    for (auto ca : coeffA ) {
-                        auto ib = 0;
-                        for (auto cb : coeffB) {
 
-                            buf(fx, fy) += normA[ia] * normB[ib] * ca * cb * \
-                                        overlap_elem(shells[ipr].exp[ia], lmn1, shells[ipr].coord,
-                                        shells[jpr].exp[ib], lmn2, shells[jpr].coord);
-                        ib++;
-                        }
-                    ia++;
-                    }
-                fy++;
-                }
-            fx++;    
+        dj = shells[jpr].ngto;
+        y = 0;
+        for (auto j = 0; j < jpr; j++) {
+                y += shells[j].ngto;
+        }
+
+        ijkl[0] = ipr;
+        ijkl[1] = jpr;
+
+        buf = new double[di * dj]();
+        int1e_ovlp_cart(buf, shells, ijkl);
+        //buf.setZero(di, dj);
+        //int1e_ovlp_cart(buf, shells, ijkl);
+        //std::cout << "\n" << buf << std::endl;
+        fij = 0;
+        for (fi = 0; fi < di; ++fi) {
+            for (fj = 0; fj < dj; ++fj, ++fij) {
+                S(x + fi, y + fj) = buf[fij];
+                S(y + fj, x + fi) = buf[fij];
             }
-            for (int i = 0; i < di; ++i) {
-                for (int j = 0; j < dj; ++j) {
-                    S(x + i, y + j) = buf(i, j);
-                    S(y + j, x + i) = buf(i, j);
-                }
-            }
-            //std::cout << "buf" << buf << std::endl<< std::endl;
-            //std::cout <<"S" << S << std::endl << std::endl;
-        }  
+        }
+        delete[] buf;
     }
-    
+
+    delete[]ik;
+    delete[]jl;  
     return S;
 }
 
 Matrix Mole::calc_kin(std::vector<Shell>& shells) {
 
-    auto nshls = shells.size();
+    int nshls = shells.size();
+    auto sum_shls = nshls * (nshls + 1) / 2;
+
     auto nao = 0;
     for (const auto& shell : shells) {
         nao += shell.ngto;
     }
-    Matrix T = Matrix::Zero(nao, nao);
-    //m_T.setZero(nao, nao);    
 
-    for (auto ipr = 0; ipr < nshls; ipr++) {
-        auto di = shells[ipr].ngto;
-        auto x = 0;
+    Eigen::IOFormat fmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
+    Matrix T = Matrix::Zero(nao, nao);
+
+    int  ijkl[2];
+
+    int* ik = new int[sum_shls], * jl = new int[sum_shls];
+    for (int i = 0, ij=0; i < nshls; ++i)
+        for (int j = i; j < nshls; ++j, ++ij)
+        {
+            ik[ij] = i;
+            jl[ij] = j;
+        }
+
+    int ipr, jpr;
+    int ij, di, dj, x, y;
+    int fi, fj, fij;
+    double* buf;
+    //Matrix buf;
+ #pragma omp parallel default(none) \
+             shared(nshls, sum_shls, shells, ik, jl, T) \
+             private(ipr, jpr, ij, di, x, dj, y, ijkl, fi, fj,fij, buf) 
+ #pragma omp for nowait schedule(dynamic, 2)
+
+    for (ij = 0; ij < sum_shls; ij++)
+    {
+        ipr = ik[ij];
+        jpr = jl[ij];
+
+        di = shells[ipr].ngto;
+        x = 0;
         for (int i = 0; i < ipr; i++) {
             x += shells[i].ngto;
         }
-        for (auto jpr = ipr; jpr < nshls; jpr++) {
-            auto dj = shells[jpr].ngto;
-            auto y = 0;
-            for (auto j = 0; j < jpr; j++) {
-                y += shells[j].ngto;
-            }
-            
-            Matrix buf;
-            buf.setZero(di, dj);
-            
-            auto fx = 0;
-            for (auto lmn1 : shells[ipr].shl) {
-                auto normA = norm(lmn1, shells[ipr].exp);
-                auto coeffA = shells[ipr].coeff;
-                normalization(coeffA, lmn1, normA, shells[ipr].exp);
-                auto fy = 0;
-                for (auto lmn2 : shells[jpr].shl) {
-                    auto normB = norm(lmn2, shells[jpr].exp);
-                    auto coeffB = shells[jpr].coeff;
-                    normalization(coeffB, lmn2, normB, shells[jpr].exp);
-                    auto ia = 0;
-                    for (auto ca : coeffA) {
-                        auto ib = 0;
-                        for (auto cb : coeffB) {
 
-                            buf(fx, fy) += normA[ia] * normB[ib] * ca * cb * \
-                                        kinetic_elem(shells[ipr].exp[ia], lmn1, shells[ipr].coord,
-                                        shells[jpr].exp[ib], lmn2, shells[jpr].coord);
-                        ib++;
-                        }
-                    ia++;
-                    }
-                fy++;
-                }
-            fx++;    
+        dj = shells[jpr].ngto;
+        y = 0;
+        for (auto j = 0; j < jpr; j++) {
+                y += shells[j].ngto;
+        }
+
+        ijkl[0] = ipr;
+        ijkl[1] = jpr;
+
+        buf = new double[di * dj]();
+        int1e_kin_cart(buf, shells, ijkl);
+        //buf.setZero(di, dj);
+        //int1e_ovlp_cart(buf, shells, ijkl);
+        //std::cout << "\n" << buf << std::endl;
+        fij = 0;
+        for (fi = 0; fi < di; ++fi) {
+            for (fj = 0; fj < dj; ++fj, ++fij) {
+                T(x + fi, y + fj) = buf[fij];
+                T(y + fj, x + fi) = buf[fij];
             }
-            for (int i = 0; i < di; ++i) {
-                for (int j = 0; j < dj; ++j) {
-                    T(x + i, y + j) = buf(i, j);
-                    T(y + j, x + i) = buf(i, j);
-                }
-            }
-        }  
+        }
+        delete[] buf;
     }
-    
+
+    delete[]ik;
+    delete[]jl;  
     return T;
 }
 
@@ -168,183 +184,171 @@ Matrix Mole::calc_nuc(std::vector<Shell>& shells, std::vector<Atom>& atoms) {
                    {{atom.x, atom.y, atom.z}}});
     }
 
-    auto nshls = shells.size();
+    int nshls = shells.size();
+    auto sum_shls = nshls * (nshls + 1) / 2;
+
     auto nao = 0;
     for (const auto& shell : shells) {
         nao += shell.ngto;
     }
 
+    Eigen::IOFormat fmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
     Matrix V = Matrix::Zero(nao, nao);
-    //m_V.setZero(nao, nao);    
 
-    for (auto ipr = 0; ipr < nshls; ipr++) {
-        auto di = shells[ipr].ngto;
-        auto x = 0;
+    int  ijkl[2];
+
+    int* ik = new int[sum_shls], * jl = new int[sum_shls];
+    for (int i = 0, ij=0; i < nshls; ++i)
+        for (int j = i; j < nshls; ++j, ++ij)
+        {
+            ik[ij] = i;
+            jl[ij] = j;
+        }
+
+    int ipr, jpr;
+    int ij, di, dj, x, y;
+    int fi, fj, fij;
+    double* buf;
+    //Matrix buf;
+ #pragma omp parallel default(none) \
+             shared(nshls, sum_shls, shells, atoms, ik, jl, V, q) \
+             private(ipr, jpr, ij, di, x, dj, y, ijkl, fi, fj,fij, buf) 
+ #pragma omp for nowait schedule(dynamic, 2)
+
+    for (ij = 0; ij < sum_shls; ij++)
+    {
+        ipr = ik[ij];
+        jpr = jl[ij];
+
+        di = shells[ipr].ngto;
+        x = 0;
         for (int i = 0; i < ipr; i++) {
             x += shells[i].ngto;
         }
-        for (auto jpr = ipr; jpr < nshls; jpr++) {
-            auto dj = shells[jpr].ngto;
-            auto y = 0;
-            for (auto j = 0; j < jpr; j++) {
-                y += shells[j].ngto;
-            }
-            
-            Matrix buf;
-            buf.setZero(di, dj);
-            
-            auto fx = 0;
-            for (auto lmn1 : shells[ipr].shl) {
-                auto normA = norm(lmn1, shells[ipr].exp);
-                auto coeffA = shells[ipr].coeff;
-                normalization(coeffA, lmn1, normA, shells[ipr].exp);
-                auto fy = 0;
-                for (auto lmn2 : shells[jpr].shl) {
-                    auto normB = norm(lmn2, shells[jpr].exp);
-                    auto coeffB = shells[jpr].coeff;
-                    normalization(coeffB, lmn2, normA, shells[ipr].exp);
-                    auto ia = 0;
-                    for (auto ca : coeffA) {
-                        auto ib = 0;
-                        for (auto cb : coeffB) { 
-                            for (auto nuc_cent : q) {   
 
-                                buf(fx, fy) += -nuc_cent.first * normA[ia] * normB[ib] * ca * cb * \
-                                        nuclear_elem(shells[ipr].exp[ia], lmn1, shells[ipr].coord,
-                                        shells[jpr].exp[ib], lmn2, shells[jpr].coord, nuc_cent.second);
-                            
-                            }  
-                        ib++;
-                        }
-                    ia++;
-                    }
-                fy++;
-                }
-            fx++;    
+        dj = shells[jpr].ngto;
+        y = 0;
+        for (auto j = 0; j < jpr; j++) {
+                y += shells[j].ngto;
+        }
+
+        ijkl[0] = ipr;
+        ijkl[1] = jpr;
+
+        buf = new double[di * dj]();
+        int1e_nuc_cart(buf, shells, ijkl, q);
+        //buf.setZero(di, dj);
+        //int1e_ovlp_cart(buf, shells, ijkl);
+        //std::cout << "\n" << buf << std::endl;
+        fij = 0;
+        for (fi = 0; fi < di; ++fi) {
+            for (fj = 0; fj < dj; ++fj, ++fij) {
+                V(x + fi, y + fj) = buf[fij];
+                V(y + fj, x + fi) = buf[fij];
             }
-            for (int i = 0; i < di; ++i) {
-                for (int j = 0; j < dj; ++j) {
-                    V(x + i, y + j) = buf(i, j);
-                    V(y + j, x + i) = buf(i, j);
-                }
-            }
-        }  
+        }
+        delete[] buf;
     }
-    
+
+    delete[]ik;
+    delete[]jl;  
     return V;
 }
 
-
 Tensor Mole::calc_eri(std::vector<Shell>& shells) {
-    auto nshls = shells.size();
+
+    int nshls = shells.size();
+    auto sum_shls = nshls * (nshls + 1) / 2;
+
     auto nao = 0;
     for (const auto& shell : shells) {
         nao += shell.ngto;
     }
 
-    Tensor I(nao, nao, nao ,nao);
-    I.setZero();
-    for (int ipr = 0; ipr < nshls; ipr++) {
-        auto di = shells[ipr].ngto;
-        auto x = 0;
+    Tensor I(nao, nao, nao, nao);
+
+    int* ik = new int[nshls * nshls], * jl = new int[nshls * nshls];
+    for (int i = 0, ij = 0; i < nshls; i++) {
+        for (int j = i; j < nshls; j++, ij++) {
+            ik[ij] = i;
+            jl[ij] = j;
+        }
+    }
+
+    int ipr, jpr, kpr, lpr;
+    int ij, kl, di, dj, dk, dl, x, y, z, w, ijkl[4];
+    int sum_kl;
+    int fi, fj, fk, fl, fijkl;
+    double* buf;
+#pragma omp parallel default(none) \
+             shared(nshls, sum_shls, shells, ik, jl, I) \
+             private(ipr, jpr, kpr, lpr, sum_kl, ij, kl, di, x, dj, y, dk, z, dl, w, ijkl, fi, fj, fk, fl, fijkl, buf) 
+#pragma omp for nowait schedule(dynamic, 2)   
+    for (ij = 0; ij < sum_shls; ij++) {
+        ipr = ik[ij];
+        jpr = jl[ij];
+
+        di = shells[ipr].ngto;
+        x = 0;
         for (int i = 0; i < ipr; i++) {
             x += shells[i].ngto;
         }
-        for (int jpr = 0; jpr <= ipr; jpr++) {
-            auto dj = shells[jpr].ngto;
-            auto y = 0;
-            for (int i = 0; i < jpr; i++) {
-            y += shells[i].ngto;
-            }
-            for (int kpr = 0; kpr <= ipr; kpr++) {
-                auto dk = shells[kpr].ngto;
-                auto z = 0;
-                for (int i = 0; i < kpr; i++) {
-                    z += shells[i].ngto;
-                }
-                const auto lpr_max = (ipr == kpr) ? jpr : kpr;
-                for (int lpr = 0; lpr <=  lpr_max; lpr++) {
-                    auto dl = shells[lpr].ngto;
-                    auto w = 0;
-                    for (int i = 0; i < lpr; i++) {
-                        w += shells[i].ngto;
-                    }
-                    Tensor buf(di, dj, dk, dl);
-                    buf.setZero();
-                    //std::cout << "(" << ipr << jpr <<"|" << kpr << lpr << ")" << std::endl;
 
-                    auto fx = 0;
-                    for (auto lmn1 : shells[ipr].shl) {
-                        auto normA = norm(lmn1, shells[ipr].exp);
-                        auto coeffA = shells[ipr].coeff;
-                        normalization(coeffA, lmn1, normA, shells[ipr].exp);
-                        auto fy = 0;
-                        for (auto lmn2 : shells[jpr].shl) {
-                            auto normB = norm(lmn2, shells[jpr].exp);
-                            auto coeffB = shells[jpr].coeff;
-                            normalization(coeffB, lmn2, normB, shells[jpr].exp);
-                            auto fz = 0;
-                            for (auto lmn3 : shells[kpr].shl) {
-                                auto normC = norm(lmn3, shells[kpr].exp);
-                                auto coeffC = shells[kpr].coeff;
-                                normalization(coeffC, lmn3, normC, shells[kpr].exp);
-                                auto fw = 0;
-                                for (auto lmn4 : shells[lpr].shl) {
-                                    auto normD = norm(lmn4, shells[lpr].exp);
-                                    auto coeffD = shells[lpr].coeff;
-                                    normalization(coeffD, lmn4, normD, shells[lpr].exp);
-                                    
-                                    auto ia = 0;
-                                    for (auto ca : coeffA) {
-                                        auto ib = 0;
-                                        for (auto cb : coeffB) { 
-                                            auto ic = 0;
-                                            for (auto cc : coeffC) {
-                                                auto id = 0;
-                                                for (auto cd : coeffD) {
-                                                    buf(fx, fy, fz, fw) += normA[ia] * normB[ib] * normC[ic] * normD[id] * \
-                                                                            ca * cb * cc * cd * \
-                                                                            electron_repulsion(shells[ipr].exp[ia], lmn1, shells[ipr].coord,
-                                                                                               shells[jpr].exp[ib], lmn2, shells[jpr].coord,
-                                                                                               shells[kpr].exp[ic], lmn3, shells[kpr].coord,
-                                                                                               shells[lpr].exp[id], lmn4, shells[lpr].coord);
-                                                id++;    
-                                                }
-                                            ic++;    
-                                            }
-                                        ib++;
-                                        }
-                                    ia++;
-                                    }
-                                fw++;
-                                }
-                            fz++;
-                            }
-                        fy++;
-                        }
-                    fx++;
-                    }  
-                           
-                    for (int i = 0; i < di; ++i) {
-                        for (int j = 0; j < dj; ++j) {
-                            for (int k = 0; k < dk; ++k) {
-                                for (int l = 0; l < dl; l++) {
-                                    I(x+i, y+j, z+k, w+l) = buf(i, j, k, l);
-                                    I(y+j, x+i, z+k, w+l) = buf(i, j, k, l);
-                                    I(x+i, y+j, w+l, z+k) = buf(i, j, k, l);
-                                    I(y+j, x+i, w+l, z+k) = buf(i, j, k, l);
-                                    I(z+k, w+l, x+i, y+j) = buf(i, j, k, l);
-                                    I(w+l, z+k, x+i, y+j) = buf(i, j, k, l);
-                                    I(z+k, w+l, y+j, x+i) = buf(i, j, k, l);
-                                    I(w+l, z+k, y+j, x+i) = buf(i, j, k, l);
-                                }
-                            }
-                        }  
-                    }
-                }
-            } 
+        dj = shells[jpr].ngto;
+        y = 0;
+        for (auto j = 0; j < jpr; j++) {
+            y += shells[j].ngto;
         }
+        ijkl[0] = ipr;
+        ijkl[1] = jpr;
+
+        sum_kl = ipr * (ipr + 1) / 2;
+        for (kl = sum_kl; kl < sum_shls; kl++) {
+            kpr = ik[kl];
+            lpr = jl[kl];
+
+            dk = shells[kpr].ngto;
+            z = 0;
+            for (int k = 0; k < kpr; k++)
+            {
+                z += shells[k].ngto;
+            }
+
+            dl = shells[lpr].ngto;
+            w = 0;
+            for (int l = 0; l < lpr; l++)
+            {
+                w += shells[l].ngto;
+            }
+
+            ijkl[2] = kpr;
+            ijkl[3] = lpr;
+
+            buf = new double[di*dj*dk*dl]();
+            int2e_cart(buf, shells, ijkl);
+            fijkl = 0;
+            for ( fi = 0; fi < di; fi++) {
+                for (fj = 0; fj < dj; fj++) {
+                    for (fk = 0; fk < dk; fk++) {
+                        for (fl = 0; fl < dl; fl++, fijkl++) {
+                            I(x+fi, y+fj, z+fk, w+fl) = buf[fijkl];
+                            I(y+fj, x+fi, z+fk, w+fl) = buf[fijkl];
+                            I(x+fi, y+fj, w+fl, z+fk) = buf[fijkl];
+                            I(y+fj, x+fi, w+fl, z+fk) = buf[fijkl];
+                            I(z+fk, w+fl, x+fi, y+fj) = buf[fijkl];
+                            I(w+fl, z+fk, x+fi, y+fj) = buf[fijkl];
+                            I(z+fk, w+fl, y+fj, x+fi) = buf[fijkl];
+                            I(w+fl, z+fk, y+fj, x+fi) = buf[fijkl];
+                        }
+                    } 
+                }  
+            }
+            delete[] buf;
+            
+        }  
     }
     
+    delete[]ik;
+    delete[]jl;
     return I;
 }

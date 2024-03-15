@@ -15,7 +15,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/usr/lib/cmake/Boost-1.83.0"
+			"value" : "/home/yx/anaconda3/lib/cmake/Boost-1.73.0"
 		},
 		{
 			"name" : "Boost_INCLUDE_DIR",
@@ -27,7 +27,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/usr/include"
+			"value" : "/home/yx/anaconda3/include"
 		},
 		{
 			"name" : "CMAKE_ADDR2LINE",
@@ -43,7 +43,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-addr2line"
+			"value" : "/usr/sbin/addr2line"
 		},
 		{
 			"name" : "CMAKE_AR",
@@ -59,7 +59,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-ar"
+			"value" : "/usr/sbin/ar"
 		},
 		{
 			"name" : "CMAKE_BUILD_TYPE",
@@ -83,7 +83,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/mnt/e/YXCHF/build"
+			"value" : "/mnt/e/code/YXCHF/build"
 		},
 		{
 			"name" : "CMAKE_CACHE_MAJOR_VERSION",
@@ -120,6 +120,22 @@
 			],
 			"type" : "INTERNAL",
 			"value" : "3"
+		},
+		{
+			"name" : "CMAKE_COLOR_MAKEFILE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Enable/Disable color output during build."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "ON"
 		},
 		{
 			"name" : "CMAKE_COMMAND",
@@ -171,7 +187,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/clang++"
+			"value" : "/usr/sbin/g++"
 		},
 		{
 			"name" : "CMAKE_CXX_COMPILER_AR",
@@ -183,27 +199,11 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "LLVM archiver"
+					"value" : "A wrapper around 'ar' adding the appropriate '--plugin' option for the GCC compiler"
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/bin/llvm-ar"
-		},
-		{
-			"name" : "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "`clang-scan-deps` dependency scanner"
-				}
-			],
-			"type" : "FILEPATH",
-			"value" : "/usr/bin/clang-scan-deps"
+			"value" : "/usr/sbin/gcc-ar"
 		},
 		{
 			"name" : "CMAKE_CXX_COMPILER_RANLIB",
@@ -215,11 +215,11 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "Generate index for LLVM archive"
+					"value" : "A wrapper around 'ranlib' adding the appropriate '--plugin' option for the GCC compiler"
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/bin/llvm-ranlib"
+			"value" : "/usr/sbin/gcc-ranlib"
 		},
 		{
 			"name" : "CMAKE_CXX_FLAGS",
@@ -315,7 +315,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/clang"
+			"value" : "/usr/sbin/gcc"
 		},
 		{
 			"name" : "CMAKE_C_COMPILER_AR",
@@ -327,27 +327,11 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "LLVM archiver"
+					"value" : "A wrapper around 'ar' adding the appropriate '--plugin' option for the GCC compiler"
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/bin/llvm-ar"
-		},
-		{
-			"name" : "CMAKE_C_COMPILER_CLANG_SCAN_DEPS",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "`clang-scan-deps` dependency scanner"
-				}
-			],
-			"type" : "FILEPATH",
-			"value" : "/usr/bin/clang-scan-deps"
+			"value" : "/usr/sbin/gcc-ar"
 		},
 		{
 			"name" : "CMAKE_C_COMPILER_RANLIB",
@@ -359,11 +343,11 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "Generate index for LLVM archive"
+					"value" : "A wrapper around 'ranlib' adding the appropriate '--plugin' option for the GCC compiler"
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/bin/llvm-ranlib"
+			"value" : "/usr/sbin/gcc-ranlib"
 		},
 		{
 			"name" : "CMAKE_C_FLAGS",
@@ -459,7 +443,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-dlltool"
+			"value" : "CMAKE_DLLTOOL-NOTFOUND"
 		},
 		{
 			"name" : "CMAKE_EDIT_COMMAND",
@@ -599,7 +583,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/mnt/e/YXCHF/build/CMakeFiles/pkgRedirects"
+			"value" : "/mnt/e/code/YXCHF/build/CMakeFiles/pkgRedirects"
 		},
 		{
 			"name" : "CMAKE_GENERATOR",
@@ -611,7 +595,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "Ninja"
+			"value" : "Unix Makefiles"
 		},
 		{
 			"name" : "CMAKE_GENERATOR_INSTANCE",
@@ -659,7 +643,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/mnt/e/YXCHF"
+			"value" : "/mnt/e/code/YXCHF"
 		},
 		{
 			"name" : "CMAKE_INSTALL_PREFIX",
@@ -711,11 +695,11 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "Program used to build from build.ninja files."
+					"value" : "Path to a program."
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/ninja"
+			"value" : "/usr/sbin/make"
 		},
 		{
 			"name" : "CMAKE_MODULE_LINKER_FLAGS",
@@ -811,7 +795,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-nm"
+			"value" : "/usr/sbin/nm"
 		},
 		{
 			"name" : "CMAKE_NUMBER_OF_MAKEFILES",
@@ -839,7 +823,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-objcopy"
+			"value" : "/usr/sbin/objcopy"
 		},
 		{
 			"name" : "CMAKE_OBJDUMP",
@@ -855,7 +839,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-objdump"
+			"value" : "/usr/sbin/objdump"
 		},
 		{
 			"name" : "CMAKE_PLATFORM_INFO_INITIALIZED",
@@ -919,7 +903,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-ranlib"
+			"value" : "/usr/sbin/ranlib"
 		},
 		{
 			"name" : "CMAKE_READELF",
@@ -935,7 +919,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-readelf"
+			"value" : "/usr/sbin/readelf"
 		},
 		{
 			"name" : "CMAKE_ROOT",
@@ -1155,7 +1139,7 @@
 				}
 			],
 			"type" : "FILEPATH",
-			"value" : "/usr/sbin/llvm-strip"
+			"value" : "/usr/sbin/strip"
 		},
 		{
 			"name" : "CMAKE_TAPI",
@@ -1211,7 +1195,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "[/usr/lib/cmake/Boost-1.83.0/BoostConfig.cmake][c ][v1.83.0()]"
+			"value" : "[/home/yx/anaconda3/lib/cmake/Boost-1.73.0/BoostConfig.cmake][c ][v1.73.0()]"
 		},
 		{
 			"name" : "OpenBLAS_DIR",
@@ -1235,7 +1219,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/mnt/e/YXCHF/build"
+			"value" : "/mnt/e/code/YXCHF/build"
 		},
 		{
 			"name" : "YXCHF_IS_TOP_LEVEL",
@@ -1259,7 +1243,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/mnt/e/YXCHF"
+			"value" : "/mnt/e/code/YXCHF"
 		},
 		{
 			"name" : "_CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED",
@@ -1287,7 +1271,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "/usr/lib/cmake/boost_headers-1.83.0"
+			"value" : "/home/yx/anaconda3/lib/cmake/boost_headers-1.73.0"
 		}
 	],
 	"kind" : "cache",

@@ -39,7 +39,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "YXCHF::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-YXCHF-Release-6a5ead6d1fb5c2387c7e.json",
+					"jsonFile" : "target-YXCHF-Release-33fac8cc1158fb13891e.json",
 					"name" : "YXCHF",
 					"projectIndex" : 0
 				}
@@ -49,8 +49,8 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/mnt/e/YXCHF/build",
-		"source" : "/mnt/e/YXCHF"
+		"build" : "/mnt/e/code/YXCHF/build",
+		"source" : "/mnt/e/code/YXCHF"
 	},
 	"version" : 
 	{

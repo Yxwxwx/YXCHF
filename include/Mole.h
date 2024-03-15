@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <unordered_map>
 #include <omp.h>
 #include <boost/math/special_functions/hypergeometric_1F1.hpp>
 
@@ -172,6 +173,27 @@ public:
           {3.425250910, 0.623913730,0.168855400},  // exponents of primitive Gaussians
           {0.15432897, 0.53532814, 0.44463454}, // coefficients
           {atoms[a].x, atoms[a].y, atoms[a].z} // origin coordinates
+        ));
+        break;
+
+      case 6:  // Z=6: carbon
+        shells.push_back(Shell(
+          0,
+          {71.616837000, 13.045096000, 3.530512200},
+          {0.15432897, 0.53532814, 0.44463454},
+          {atoms[a].x, atoms[a].y, atoms[a].z}
+        ));
+        shells.push_back(Shell(
+          0,
+          {2.941249400, 0.683483100, 0.222289900},
+          {-0.09996723, 0.39951283, 0.70011547},
+          {atoms[a].x, atoms[a].y, atoms[a].z}
+        ));
+        shells.push_back(Shell(
+          1,
+          {2.941249400, 0.683483100, 0.222289900},
+          {0.15591627, 0.60768372, 0.39195739},
+          {atoms[a].x, atoms[a].y, atoms[a].z}
         ));
         break;
 
@@ -350,6 +372,7 @@ double boys(int n, double T) {
     auto T = p*RPC*RPC;
     double val = 0.0;
     if (t == 0 && u == 0 && v == 0) {
+        //std::cout << "n\n" << n << "\n" << "T\n" << T << std::endl;
         val += pow(-2*p, n)*boys(n, T);
     } else if (t == 0 && u == 0) {
         if (v > 1) {
@@ -445,6 +468,196 @@ double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, do
     val *= 2 * std::pow(M_PI, 2.5) / (p * q * std::sqrt(p + q));
     return val;
 }
+  void int1e_ovlp_cart(double* buf, std::vector<Shell>& shells, int* shls) {
+    
+    auto ipr = shls[0], jpr = shls[1];
+
+    auto di = shells[ipr].ngto, dj = shells[jpr].ngto;
+
+    auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl;
+    auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp;
+    auto coeff1 = shells[ipr].coeff, coeff2 = shells[jpr].coeff;
+    auto coord1 = shells[ipr].coord, coord2 = shells[jpr].coord;
+
+    auto fx = 0, fxy = 0;
+    for (auto lmn1 : shl1) {
+      auto norm1 = norm(lmn1, exp1);
+      normalization(coeff1, lmn1, norm1, exp1);
+
+      auto fy = 0;
+      for (auto lmn2 : shl2) {
+        auto norm2 = norm(lmn2, exp2);
+        normalization(coeff2, lmn2, norm2, exp2);
+        
+        auto ia = 0;
+        for (auto c1 : coeff1) {
+          
+          auto ib = 0;
+          for (auto c2 : coeff2) {
+                      
+            buf[fxy] += norm1[ia] * norm2[ib] * c1 * c2 * \
+                          overlap_elem(exp1[ia], lmn1, coord1,
+                          exp2[ib], lmn2, coord2);
+          ib++;
+          }
+        ia++;
+        }
+      fxy++;
+      fy++;
+      }
+    fx++;  
+    }
+  }
+
+  void int1e_kin_cart(double* buf, std::vector<Shell>& shells, int* shls) {
+        
+    auto ipr = shls[0], jpr = shls[1];
+
+    auto di = shells[ipr].ngto, dj = shells[jpr].ngto;
+
+    auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl;
+    auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp;
+    auto coeff1 = shells[ipr].coeff, coeff2 = shells[jpr].coeff;
+    auto coord1 = shells[ipr].coord, coord2 = shells[jpr].coord;
+
+    auto fx = 0, fxy = 0;
+    for (auto lmn1 : shl1) {
+      auto norm1 = norm(lmn1, exp1);
+      normalization(coeff1, lmn1, norm1, exp1);
+
+      auto fy = 0;
+      for (auto lmn2 : shl2) {
+        auto norm2 = norm(lmn2, exp2);
+        normalization(coeff2, lmn2, norm2, exp2);
+        
+        auto ia = 0;
+        for (auto c1 : coeff1) {
+          
+          auto ib = 0;
+          for (auto c2 : coeff2) {
+                      
+            buf[fxy] += norm1[ia] * norm2[ib] * c1 * c2 * \
+                          kinetic_elem(exp1[ia], lmn1, coord1,
+                          exp2[ib], lmn2, coord2);
+          ib++;
+          }
+        ia++;
+        }
+      fxy++;
+      fy++;
+      }
+    fx++;  
+    }
+    
+  }
+  
+  void int1e_nuc_cart(double* buf, std::vector<Shell>& shells, int* shls, std::vector<std::pair<int, std::vector<double>>>& q) {
+
+    auto ipr = shls[0], jpr = shls[1];
+
+    auto di = shells[ipr].ngto, dj = shells[jpr].ngto;
+
+    auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl;
+    auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp;
+    auto coeff1 = shells[ipr].coeff, coeff2 = shells[jpr].coeff;
+    auto coord1 = shells[ipr].coord, coord2 = shells[jpr].coord;
+  
+    auto fx = 0, fxy = 0;
+    for (auto lmn1 : shl1) {
+      auto norm1 = norm(lmn1, exp1);
+      normalization(coeff1, lmn1, norm1, exp1);
+
+      auto fy = 0;
+      for (auto lmn2 : shl2) {
+        auto norm2 = norm(lmn2, exp2);
+        normalization(coeff2, lmn2, norm2, exp2);
+        
+        auto ia = 0;
+        for (auto c1 : coeff1) {
+          
+          auto ib = 0;
+          for (auto c2 : coeff2) {
+
+              for (auto nuc_cent : q) {   
+                buf[fxy] += -nuc_cent.first * norm1[ia] * norm2[ib] * c1 * c2 * \
+                              nuclear_elem(exp1[ia], lmn1, coord1,
+                              exp2[ib], lmn2, coord2, nuc_cent.second);
+              }
+          ib++;
+          }
+        ia++;
+        }
+      fxy++;
+      fy++;
+      }
+    fx++;  
+    }
+  }
+  
+  void int2e_cart(double* buf, std::vector<Shell>& shells, int* shls) {
+    
+    auto ipr = shls[0], jpr = shls[1], kpr = shls[2], lpr = shls[3];
+
+    auto di = shells[ipr].ngto, dj = shells[jpr].ngto, dk = shells[kpr].ngto, dl = shells[lpr].ngto;
+
+    auto shl1 = shells[ipr].shl, shl2 = shells[jpr].shl, shl3 = shells[kpr].shl, shl4 = shells[lpr].shl;
+    auto exp1 = shells[ipr].exp, exp2 = shells[jpr].exp, exp3 = shells[kpr].exp, exp4 = shells[lpr].exp;
+    auto coeff1 = shells[ipr].coeff, coeff2 = shells[jpr].coeff, coeff3 = shells[kpr].coeff, coeff4 = shells[lpr].coeff;
+    auto coord1 = shells[ipr].coord, coord2 = shells[jpr].coord, coord3 = shells[kpr].coord, coord4 = shells[lpr].coord;
+
+    auto fx = 0, fxyzw = 0;
+    for (auto lmn1 : shl1) {
+      auto norm1 = norm(lmn1, exp1);
+      normalization(coeff1, lmn1, norm1, exp1);
+
+      auto fy = 0;
+      for (auto lmn2 : shl2) {
+        auto norm2 = norm(lmn2, exp2);
+        normalization(coeff2, lmn2, norm2, exp2);
+
+          auto fz = 0;
+          for (auto lmn3 : shl3) {
+            auto norm3 = norm(lmn3, exp3);
+            normalization(coeff3, lmn3, norm3, exp3);
+
+            auto fw = 0;
+            for (auto lmn4 : shl4) {
+              auto norm4 = norm(lmn4, exp4);
+              normalization(coeff4, lmn4, norm4, exp4);
+
+              auto ia = 0;
+              for (auto ca : coeff1) {
+                  auto ib = 0;
+                  for (auto cb : coeff2) { 
+                      auto ic = 0;
+                      for (auto cc : coeff3 ) {
+                          auto id = 0;
+                          for (auto cd : coeff4) {
+                              buf[fxyzw] += norm1[ia] * norm2[ib] * norm3[ic] * norm4[id] * \
+                                                      ca * cb * cc * cd * \
+                                                      electron_repulsion(exp1[ia], lmn1, coord1,
+                                                                         exp2[ib], lmn2, coord2,
+                                                                         exp3[ic], lmn3, coord3,
+                                                                         exp4[id], lmn4, coord4);
+                          id++;    
+                          }
+                      ic++;    
+                      }
+                  ib++;
+                  }
+              ia++;
+              }
+            fxyzw++;
+            fw++;
+            }
+          fz++;
+          }
+      fy++;
+      }
+    fx++;  
+    }
+  }
+
   Matrix calc_ovlp(std::vector<Shell>& shells);
   Matrix calc_kin(std::vector<Shell>& shells);
   Matrix calc_nuc(std::vector<Shell>& shells, std::vector<Atom>& atoms);

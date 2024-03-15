@@ -26,6 +26,7 @@ if(MSVC)
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 add_executable(YXCHF ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 
 # Find and link OpenBLAS

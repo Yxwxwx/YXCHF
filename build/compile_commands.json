@@ -1,8 +1,8 @@
 [
 {
-  "directory": "/mnt/e/YXCHF/build",
-  "command": "/usr/sbin/clang++ -I/mnt/e/YXCHF/include -isystem /usr/include/openblas  -fopenmp -march=native -O3 -DNDEBUG -O3 -Wall -o CMakeFiles/YXCHF.dir/src/main.cpp.o -c /mnt/e/YXCHF/src/main.cpp",
-  "file": "/mnt/e/YXCHF/src/main.cpp",
+  "directory": "/mnt/e/code/YXCHF/build",
+  "command": "/usr/sbin/g++  -I/mnt/e/code/YXCHF/include -I/home/yx/anaconda3/include -isystem /usr/include/openblas  -fopenmp -march=native -O3 -DNDEBUG -O3 -Wall -o CMakeFiles/YXCHF.dir/src/main.cpp.o -c /mnt/e/code/YXCHF/src/main.cpp",
+  "file": "/mnt/e/code/YXCHF/src/main.cpp",
   "output": "CMakeFiles/YXCHF.dir/src/main.cpp.o"
 }
 ]

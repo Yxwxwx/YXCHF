@@ -64,17 +64,7 @@
 		{
 			"isCMake" : true,
 			"isExternal" : true,
-			"path" : "/usr/share/cmake/Modules/Compiler/Clang-C.cmake"
-		},
-		{
-			"isCMake" : true,
-			"isExternal" : true,
-			"path" : "/usr/share/cmake/Modules/Compiler/Clang.cmake"
-		},
-		{
-			"isCMake" : true,
-			"isExternal" : true,
-			"path" : "/usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+			"path" : "/usr/share/cmake/Modules/Compiler/GNU-C.cmake"
 		},
 		{
 			"isCMake" : true,
@@ -85,11 +75,6 @@
 			"isCMake" : true,
 			"isExternal" : true,
 			"path" : "/usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
-		},
-		{
-			"isCMake" : true,
-			"isExternal" : true,
-			"path" : "/usr/share/cmake/Modules/Platform/Linux-Clang-C.cmake"
 		},
 		{
 			"isCMake" : true,
@@ -119,17 +104,12 @@
 		{
 			"isCMake" : true,
 			"isExternal" : true,
-			"path" : "/usr/share/cmake/Modules/Compiler/Clang-CXX.cmake"
+			"path" : "/usr/share/cmake/Modules/Compiler/GNU-CXX.cmake"
 		},
 		{
 			"isCMake" : true,
 			"isExternal" : true,
-			"path" : "/usr/share/cmake/Modules/Compiler/Clang.cmake"
-		},
-		{
-			"isCMake" : true,
-			"isExternal" : true,
-			"path" : "/usr/share/cmake/Modules/Platform/Linux-Clang-CXX.cmake"
+			"path" : "/usr/share/cmake/Modules/Compiler/GNU.cmake"
 		},
 		{
 			"isCMake" : true,
@@ -179,26 +159,26 @@
 		},
 		{
 			"isExternal" : true,
-			"path" : "/usr/lib/cmake/Boost-1.83.0/BoostConfigVersion.cmake"
+			"path" : "/home/yx/anaconda3/lib/cmake/Boost-1.73.0/BoostConfigVersion.cmake"
 		},
 		{
 			"isExternal" : true,
-			"path" : "/usr/lib/cmake/Boost-1.83.0/BoostConfig.cmake"
+			"path" : "/home/yx/anaconda3/lib/cmake/Boost-1.73.0/BoostConfig.cmake"
 		},
 		{
 			"isExternal" : true,
-			"path" : "/usr/lib/cmake/boost_headers-1.83.0/boost_headers-config-version.cmake"
+			"path" : "/home/yx/anaconda3/lib/cmake/boost_headers-1.73.0/boost_headers-config-version.cmake"
 		},
 		{
 			"isExternal" : true,
-			"path" : "/usr/lib/cmake/boost_headers-1.83.0/boost_headers-config.cmake"
+			"path" : "/home/yx/anaconda3/lib/cmake/boost_headers-1.73.0/boost_headers-config.cmake"
 		}
 	],
 	"kind" : "cmakeFiles",
 	"paths" : 
 	{
-		"build" : "/mnt/e/YXCHF/build",
-		"source" : "/mnt/e/YXCHF"
+		"build" : "/mnt/e/code/YXCHF/build",
+		"source" : "/mnt/e/code/YXCHF"
 	},
 	"version" : 
 	{
