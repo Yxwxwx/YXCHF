@@ -15,5 +15,6 @@ fn main() {
     shells.print();
 
     println!("Hello World!");
+    print!("hello")
 }
 
