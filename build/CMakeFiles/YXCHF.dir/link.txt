@@ -1,1 +1,0 @@
-/usr/sbin/g++  -fopenmp -march=native -O3 -DNDEBUG -O3 -Wall CMakeFiles/YXCHF.dir/src/main.cpp.o -o YXCHF  /usr/lib/libopenblas.so.0.3 -lm 
