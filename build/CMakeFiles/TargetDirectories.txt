@@ -1,3 +1,0 @@
-/mnt/e/code/YXCHF/build/CMakeFiles/YXCHF.dir
-/mnt/e/code/YXCHF/build/CMakeFiles/edit_cache.dir
-/mnt/e/code/YXCHF/build/CMakeFiles/rebuild_cache.dir
