@@ -1,4 +1,7 @@
-#define EIGEN_USE_BLAS
+#ifdef _MSC_VER // 如果是MSVC编译器
+#define M_PI 3.1415926535897932384626433832795028
+#endif
+
 #include "Eigen/Dense"
 #include "EigenUnsupported/Eigen/CXX11/Tensor"
 // standard C++ headers
@@ -10,6 +13,7 @@
 #include <unordered_map>
 #include <omp.h>
 #include <boost/math/special_functions/hypergeometric_1F1.hpp>
+
 
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
     Matrix; 
@@ -667,4 +671,16 @@ double nuclear_elem(double a, std::vector<int>& lmn1, std::vector<double>& A, do
     return s12_deg * s34_deg * s12_34_deg;
   }
   Matrix calc_eri_direct(const std::vector<Shell>& shells, const Matrix& D);
+
+  struct DIISInfo
+  {
+        int scf_iter;
+        Matrix fock_matrix;
+        Matrix density_matrix;
+        double energy;
+        Matrix diis_error;
+  };
+  Matrix compute_diis_r(const Matrix& F, const Matrix& D, const Matrix& S);
+  void save_diis_info(int iter, double E_elec0, Matrix& F, Matrix& D, Matrix& DIIS_R, std::vector<DIISInfo>& diis_info, int n_diis);
+  Matrix cdiis_minimize(std::vector<DIISInfo>& diis_info);
 };

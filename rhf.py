@@ -5,16 +5,17 @@ import time
 
 # Set up molecular geometry and basis
 mol = gto.M(atom='''
- O 0 0 0
- H 0 -0.757 0.587
- H 0 0.757 0.587
+O  0.0  0.0  0.0
+O  0.0  0.0  1.5
+H  1.0  0.0  0.0
+H  0.0  0.7  1.0
             ''', basis="sto-3g")
 # ==> Set default program options <==
 # Maximum SCF iterations
 max_iter = 100
 # Energy convergence criterion
-E_conv = 1.0e-10
-D_conv = 1.0e-8
+E_conv = 1.0e-12
+D_conv = 1.0e-12
 # ==>Get informt <==
 # get atom coordinate
 A_t = mol.atom_coords()
@@ -101,6 +102,7 @@ def diis_xtrap(F_list, DIIS_RESID):
     B[-1, :] = -1
     B[:, -1] = -1
     B[-1, -1] = 0
+
     for i in range(len(F_list)):
         for j in range(len(F_list)):
             B[i, j] = np.einsum("ij,ij->", DIIS_RESID[i], DIIS_RESID[j], optimize=True)
@@ -124,7 +126,7 @@ def diis_xtrap(F_list, DIIS_RESID):
 scf_eng = scf.RHF(mol)
 scf_eng.scf()
 D = make_D(H, ndocc)
-print("\n", D)
+
 # D = np.eye(nao)
 # D = scf_eng.get_init_guess()
 

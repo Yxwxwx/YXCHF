@@ -1,0 +1,10 @@
+^E:\CODE\YXCHF\BUILD\CMAKEFILES\59E7B9971AF60269A002638E3ED1C37A\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SE:/code/YXCHF -BE:/code/YXCHF/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file E:/code/YXCHF/build/YXCHF.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

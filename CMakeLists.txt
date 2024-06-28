@@ -29,14 +29,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(YXCHF ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 
-# Find and link OpenBLAS
-find_package(OpenBLAS REQUIRED)
-target_link_libraries(YXCHF PUBLIC OpenBLAS::OpenBLAS)
-
-## Find and link Eigen3
-#find_package (Eigen3 3.3 REQUIRED NO_MODULE)
-#target_link_libraries(YXCHF PUBLIC Eigen3::Eigen)
-
 # Find and link Boost
 find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})

@@ -32,11 +32,11 @@ int main(int argc, char* argv[]) {
         std::cout << "\tNuclear repulsion energy = " << enuc << std::endl;
 
         mole.m_S = mole.calc_ovlp(shells);
-        //std::cout << "\n\tOverlap Integrals:\n";
+        std::cout << "\n\tOverlap Integrals:\n";
         //std::cout << mole.m_S << std::endl;
 
-        //std::cout << "\n\tCore Hamiltonian:\n";
         mole.m_H = mole.calc_core_h(shells, atoms);
+        std::cout << "\n\tCore Hamiltonian:\n";
         //std::cout << mole.m_H << std::endl;
 
         Matrix D;
@@ -56,33 +56,28 @@ int main(int argc, char* argv[]) {
         //std::cout << D << std::endl;
 
         const auto maxiter = 100;
-        const double conv = 1e-12;
+        const double conv = 1e-10;
         auto iter = 0;
         double rmsd = 0.0;
         double ediff = 0.0;
         double ehf = 0.0;
+        std::vector<Mole::DIISInfo> diis_info;
 
         do
         {
+
           const auto tstart = std::chrono::high_resolution_clock::now();
           ++iter;
 
-          // Save a copy of the energy and the density
+          // Save a copy of the energy and the density          
           auto ehf_last = ehf;
           auto D_last = D;
-
           auto F = mole.m_H;
+          F += mole.calc_eri_direct(shells, D);        
 
-          F += mole.calc_eri_direct(shells, D);
-          
+          auto diis_r = mole.compute_diis_r(F, D, mole.m_S);
+          mole.save_diis_info(iter, ehf, F, D, diis_r, diis_info, 8);
 
-          Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, mole.m_S);
-          auto eps = gen_eig_solver.eigenvalues();
-          auto C = gen_eig_solver.eigenvectors();
-
-          // compute density, D = C(occ) . C(occ)T
-          auto C_occ = C.leftCols(ndocc);
-          D = C_occ * C_occ.transpose();
           // compute HF energy
           ehf = 0.0;
           for (auto i = 0; i < nao; i++)
@@ -90,13 +85,36 @@ int main(int argc, char* argv[]) {
           
           // compute difference with last iteration
           ediff = ehf - ehf_last;
-          rmsd = (D - D_last).norm();
+          rmsd = 0.5 * std::sqrt((diis_r.array() * diis_r.array()).mean());;
+
+          if (fabs(rmsd) < 0.1 || iter > 8)
+          { 
+            F = mole.cdiis_minimize(diis_info);
+            Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, mole.m_S);
+            auto eps = gen_eig_solver.eigenvalues();
+            auto C = gen_eig_solver.eigenvectors();
+            // compute density, D = C(occ) . C(occ)T
+            auto C_occ = C.leftCols(ndocc);
+            D = C_occ * C_occ.transpose();
+          }  
+          else {
+            Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, mole.m_S);
+            auto eps = gen_eig_solver.eigenvalues();
+            auto C = gen_eig_solver.eigenvectors();
+    
+            // compute density, D = C(occ) . C(occ)T
+            auto C_occ = C.leftCols(ndocc);
+            D = C_occ * C_occ.transpose();
+          }
+
           const auto tstop = std::chrono::high_resolution_clock::now();
           const std::chrono::duration<double> time_elapsed = tstop - tstart;
 
-          if (iter == 1)
+          if (iter == 1) 
             std::cout << "\n\n Iter        E(elec)              E(tot)             "
                      "  Delta(E)             RMS(D)         Time(s)\n";
+          
+
           printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf,
              ehf + enuc, ediff, rmsd, time_elapsed.count());
 
@@ -534,4 +552,69 @@ Matrix Mole::calc_eri_direct(const std::vector<Shell>& shells, const Matrix& D) 
 
     Matrix Gt = G.transpose();
     return 0.5 * (G + Gt);
+}
+
+Matrix Mole::compute_diis_r(const Matrix& F, const Matrix& D, const Matrix& S) {
+    return F * D * S - S * D * F;
+}
+void Mole::save_diis_info(int iter, double E_elec0, Matrix& F, Matrix& D, Matrix& DIIS_R, std::vector<DIISInfo>& diis_info, int n_diis) {
+    DIISInfo info;
+    info.scf_iter = iter;
+    info.energy = E_elec0;
+    info.fock_matrix = F;
+    info.density_matrix = D;
+    info.diis_error = DIIS_R;
+
+    diis_info.push_back(info);
+    if (diis_info.size() > n_diis) {
+        diis_info.erase(diis_info.begin());
+    }
+}
+
+Matrix Mole::cdiis_minimize(std::vector<DIISInfo>& diis_info)
+    {
+    auto nx = diis_info.size();
+    std::vector<Matrix> fock_matrices;
+    std::vector<Matrix> diis_resid;
+
+    for (const DIISInfo& info : diis_info)
+    {
+        const Matrix fock_matrix = info.fock_matrix;
+        fock_matrices.push_back(fock_matrix);
+    }
+    for (const DIISInfo& info : diis_info)
+    {
+        const Matrix diis_errors = info.diis_error;
+        diis_resid.push_back(diis_errors);
+    }
+
+    auto dim_B = nx + 1;
+    Matrix m_B = Matrix::Zero(dim_B, dim_B);
+
+    for (int i = 0; i < nx; i++)
+    {
+        for (int j = 0; j < nx; j++)
+        {
+            m_B(i, j) = (diis_resid[i].array() * diis_resid[j].array()).sum();
+        }
+
+    }
+    for (int i = 0; i < dim_B - 1; i++) {
+        m_B(i, dim_B - 1) = -1;
+        m_B(dim_B - 1, i) = -1;
+    }
+    m_B(dim_B - 1, dim_B - 1) = 0;
+    Eigen::VectorXd rhs = Eigen::VectorXd::Zero(dim_B);
+    rhs(dim_B - 1) = -1;
+    Eigen::VectorXd coeff = m_B.fullPivLu().solve(rhs);
+
+    int m_nao = fock_matrices[0].rows();
+    Matrix F_DIIS = Matrix::Zero(m_nao, m_nao);
+
+    for (int x = 0; x < coeff.size() - 1; x++)
+    {
+        F_DIIS += coeff(x) * fock_matrices[x];
+    }
+    //std::cout << F_DIIS << std::endl;
+    return F_DIIS;
 }
