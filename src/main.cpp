@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
         const auto maxiter = 100;
         const double conv = 1e-10;
         auto iter = 0;
-        double rmsd = 0.0;
+        double rmsd = D.norm();
         double ediff = 0.0;
         double ehf = 0.0;
         std::vector<Mole::DIISInfo> diis_info;
@@ -85,7 +85,6 @@ int main(int argc, char* argv[]) {
           
           // compute difference with last iteration
           ediff = ehf - ehf_last;
-          rmsd = 0.5 * std::sqrt((diis_r.array() * diis_r.array()).mean());;
 
           if (fabs(rmsd) < 0.1 || iter > 8)
           { 
@@ -96,7 +95,8 @@ int main(int argc, char* argv[]) {
             // compute density, D = C(occ) . C(occ)T
             auto C_occ = C.leftCols(ndocc);
             D = C_occ * C_occ.transpose();
-          }  
+            rmsd = (D - D_last).norm();
+          } 
           else {
             Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, mole.m_S);
             auto eps = gen_eig_solver.eigenvalues();
@@ -105,6 +105,7 @@ int main(int argc, char* argv[]) {
             // compute density, D = C(occ) . C(occ)T
             auto C_occ = C.leftCols(ndocc);
             D = C_occ * C_occ.transpose();
+            rmsd = (D - D_last).norm();
           }
 
           const auto tstop = std::chrono::high_resolution_clock::now();

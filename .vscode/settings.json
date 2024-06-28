@@ -5,6 +5,14 @@
         "random": "cpp",
         "cmath": "cpp",
         "tensor": "cpp",
-        "chrono": "cpp"
-    }
+        "chrono": "cpp",
+        "cstdarg": "cpp",
+        "cstddef": "cpp",
+        "cstdio": "cpp",
+        "cstdlib": "cpp",
+        "cstring": "cpp",
+        "ctime": "cpp",
+        "cwchar": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }
